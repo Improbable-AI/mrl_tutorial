@@ -27,6 +27,9 @@ packages = [
     {include = "lerobot"},
     {include = "mrl_utils"}  
 ]
+include = [
+    "panda.yaml"  # Add this line to include the file during installation
+]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
