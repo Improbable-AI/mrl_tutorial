@@ -17,11 +17,17 @@ def get_sim_and_dataset(dataset_uuid, dataset_name = None):
     mujoco_model = get_sim(dex_data_dir)
     mujoco_data = mujoco.MjData(mujoco_model)
 
-    renderer = mujoco.Renderer(mujoco_model) 
+    renderer = mujoco.Renderer(mujoco_model, 128, 128) 
 
     data = dexhub.load(dex_data_dir[0])
     obs_dim = data.data[0].obs.mj_qpos.shape
     act_dim = data.data[0].act.mj_ctrl.shape
+
+    dim_info = {
+        'obs_state': obs_dim,
+        'obs_image': (3, 128, 128),
+        'action': act_dim
+    }
 
     robot_cfg = init_hydra_config("./panda.yaml")
     robot = make_robot(robot_cfg)
@@ -66,4 +72,4 @@ def get_sim_and_dataset(dataset_uuid, dataset_name = None):
 
     dataset.consolidate()
 
-    return mujoco_model, dataset
+    return mujoco_model, dataset, dim_info
