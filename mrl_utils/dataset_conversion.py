@@ -64,4 +64,6 @@ def get_sim_and_dataset(dataset_uuid, dataset_name = None):
         # Now try saving
         dataset.save_episode(task="test", encode_videos=False)
 
+    dataset.consolidate()
+    
     return mujoco_model, dataset
