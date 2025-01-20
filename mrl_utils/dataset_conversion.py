@@ -7,7 +7,7 @@ import numpy as np
 import os 
 from mrl_utils.mj_utils import get_sim
 import mujoco
-
+from copy import deepcopy 
 
 def get_sim_and_dataset(dataset_uuid, dataset_name = None, num_next_actions = 1): 
 
@@ -24,7 +24,8 @@ def get_sim_and_dataset(dataset_uuid, dataset_name = None, num_next_actions = 1)
     act_dim = data.data[0].act.mj_ctrl.shape
 
     dim_info = {
-        'obs_state': obs_dim,
+        'obs_state': (18, ),
+        'obs_environment_state': (obs_dim[0] - 18, ),
         'obs_image': (3, 128, 128),
         'action': act_dim
     }
@@ -44,8 +45,17 @@ def get_sim_and_dataset(dataset_uuid, dataset_name = None, num_next_actions = 1)
         dataset_name = dataset_name + str(np.random.randint(0, 1000))
         dataset = LeRobotDataset.create(dataset_name, fps = 10, robot = robot)
 
-    dataset.features['observation.state']['shape'] = obs_dim
+    # dataset.features = dict 
+
+    # dataset.features "observation.environment_state"
+
+    dataset.features['observation.state']['shape'] = (18, )
     dataset.features['action']['shape'] = act_dim
+    dataset.features['observation.environment_state'] = deepcopy(dataset.features['observation.state'])
+    dataset.features['observation.environment_state']['shape'] = (obs_dim[0] - 18, )
+    dataset.features['observation.environment_state']['names'] = [str(i) for i in range(obs_dim[0] - 18)]
+    dataset.episode_buffer["observation.environment_state"] = deepcopy(dataset.episode_buffer["observation.state"])
+
 
     # Load the dataset
     for d in dex_data_dir:
@@ -63,13 +73,14 @@ def get_sim_and_dataset(dataset_uuid, dataset_name = None, num_next_actions = 1)
             pixels = renderer.render()
 
             dataset.add_frame({
-                'observation.state': obs,
-                # 'observaton.environment_state': obs, 
+                'observation.state': obs[:18],
+                'observation.environment_state': obs[18:], 
                 'observation.images.main': pixels, 
                 'action': act
             })
         # Now try saving
         dataset.save_episode(task="test", encode_videos=False)
+
 
     dataset.consolidate()
 
@@ -78,12 +89,11 @@ def get_sim_and_dataset(dataset_uuid, dataset_name = None, num_next_actions = 1)
         # then load current image and state corresponding to 0.0 second.
         "observation.images.main": [0.0],
         "observation.state": [0.0],
+        "observation.environment_state": [0.0],
         # create a list of actions to be loaded
         # from 0.0, load num_next_actions actions with 0.1 second interval
         "action": [0.0] + [0.1 * i for i in range(1, num_next_actions)]
     }
-
-
 
     final_dataset = LeRobotDataset(dataset_name, delta_timestamps = delta_timestamps, local_files_only=True)
 
