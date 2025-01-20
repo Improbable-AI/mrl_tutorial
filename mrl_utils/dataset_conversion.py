@@ -9,7 +9,7 @@ from mrl_utils.mj_utils import get_sim
 import mujoco
 
 
-def get_sim_and_dataset(dataset_uuid, dataset_name = None): 
+def get_sim_and_dataset(dataset_uuid, dataset_name = None, num_next_actions = 1): 
 
     data_dir = dexhub.download_dataset(uuid=dataset_uuid, load_dir = "./", load_to_mem = False)
     dex_data_dir = [os.path.join(data_dir, f) for f in os.listdir(data_dir) if f.endswith('.dex')]
@@ -38,11 +38,11 @@ def get_sim_and_dataset(dataset_uuid, dataset_name = None):
         dataset_name = "younghyopark/" + str(np.random.randint(0, 1000))
 
     try: 
-        dataset = LeRobotDataset.create(dataset_name, fps = 30, robot = robot)
+        dataset = LeRobotDataset.create(dataset_name, fps = 10, robot = robot)
     except: 
         # add random index to the dataset_name
         dataset_name = dataset_name + str(np.random.randint(0, 1000))
-        dataset = LeRobotDataset.create(dataset_name, fps = 30, robot = robot)
+        dataset = LeRobotDataset.create(dataset_name, fps = 10, robot = robot)
 
     dataset.features['observation.state']['shape'] = obs_dim
     dataset.features['action']['shape'] = act_dim
@@ -64,6 +64,7 @@ def get_sim_and_dataset(dataset_uuid, dataset_name = None):
 
             dataset.add_frame({
                 'observation.state': obs,
+                # 'observaton.environment_state': obs, 
                 'observation.images.main': pixels, 
                 'action': act
             })
@@ -72,4 +73,18 @@ def get_sim_and_dataset(dataset_uuid, dataset_name = None):
 
     dataset.consolidate()
 
-    return mujoco_model, dataset, dim_info
+    delta_timestamps = {
+        # Load the previous image and state at -0.1 seconds before current frame,
+        # then load current image and state corresponding to 0.0 second.
+        "observation.images.main": [0.0],
+        "observation.state": [0.0],
+        # create a list of actions to be loaded
+        # from 0.0, load num_next_actions actions with 0.1 second interval
+        "action": [0.0] + [0.1 * i for i in range(1, num_next_actions)]
+    }
+
+
+
+    final_dataset = LeRobotDataset(dataset_name, delta_timestamps = delta_timestamps, local_files_only=True)
+
+    return mujoco_model, final_dataset, dim_info
